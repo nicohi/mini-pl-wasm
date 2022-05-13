@@ -1,5 +1,7 @@
-# mini-pl-interpreter
-An interpreter for a simple Pascal based programming language. Made for the course Compilers (CSM14204). 
+# mini-pl-wasm
+A webassembly compiler for a simple Pascal based programming language.
+Extended from [[https://github.com/nicohi/mini-pl-interpreter]] 
+Made for the course *Code generation** (CSM14205). 
 
 ## Building
 cmake and gcc are required to compile the interpreter.
