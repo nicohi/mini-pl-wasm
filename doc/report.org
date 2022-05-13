@@ -1,0 +1,219 @@
+#+title: Course Project Report
+#+PROPERTY: ATTACH_DIR ./attach
+#+PROPERTY: ATTACH_DIR_INHERIT t
+#+OPTIONS: toc:nil
+#+OPTIONS: num:nil
+#+LaTeX_HEADER: \usepackage{pdfpages}
+
+* Instructions
+
+*cmake* and *gcc* are required to compile the interpreter.
+After =./build.sh= is run, to interpret a mini-pl progmram file, run =./build/mini-pl [filename]=.
+For testing purposes, the user can use =./build/mini-pl -s [filename]= to run merely the scanner, or =./build/mini-pl -p [filename]= to run the scanner+parser.
+Both commands print a readable result.
+Example programs are provided in =./test/=.
+
+* Implementation details
+***** Scanner
+
+The compiler uses a simple ad-hoc scanner and is based off the following regular expressions.
+The main functionality of the scanner consists of a long switch statement which applies these regular expressions one character at a time, looking ahead as necessary.
+\begin{verbatim}
+comment = "/*" ( non-* | "*" non-/ )* "*/"
+        | "//" ( non-newline )* newline
+string_lit = """ character character* """
+slash = "/"
+left_paren = "("
+right_paren = ")"
+minus = "-"
+plus = "+"
+asterisk = "*"
+equal = "="
+less = "<"
+and = "&"
+not = "!"
+semicolon = ";"
+assign = ":="
+colon = ":"
+range = ".."
+var = "var"
+for= "for"
+end = "end"
+in = "in"
+do = "do"
+read = "read"
+print = "print"
+int = "int"
+string = "string"
+bool = "bool"
+assert = "assert"
+boolean_lit = "false" | "true"
+integer_lit = digit digit*
+ident = letter ( digit | "_" | letter )*
+\end{verbatim}
+The scanner handles errors by outputting tokens of type =ERROR= for unterminated strings and unexpected characters.
+These error tokens should then be handled by the parser.
+
+***** Parser
+
+The parser implements each of the productions (everything enclosed in =<>=) in the CFG below as a class which is used to make up the syntax tree.
+\begin{verbatim}
+<prog> ::= <stmts>
+<stmts> ::= <stmt> “;” ( <stmt> “;” )*
+<stmt> ::= <var> | <assign> | <for> | <read> | <print> | <assert>
+<var> ::= “var” <ident> “:” <type> [ “:=” <expr> ]
+<assign> ::= <ident> “:=” <expr>
+<for> ::= “for” <ident> “in” <expr> “..” <expr> “do” <stmts> “end” “for”
+<read> ::= “read” <ident>
+<print> ::= “print” <expr>
+<assert> “assert” “(” <expr> “)”
+<expr> ::= <opnd> <op> <expr>
+            | [ <unary_opnd> ] <opnd>
+<opnd> ::= <integer_lit> | <string_lit> | <boolean_lit> | <ident> | “(” <expr> “)”
+<type> ::= <int> | <string> | <bool>
+\end{verbatim}
+All infix operators are currently right-associative with equal precedence.
+
+Each production of the CFG has a corresponding class, in =parser.cpp=.
+These classes can link to each other and form a syntax tree.
+This tree can then be traversed with the visitor pattern by classes inheriting the =TreeWalker= class.
+This parent class is used to implement a pretty printer of the syntax tree and the interpreter.
+The following excerpt from =parser.h= highlights the how the inheritance of these classes is derived from the CFG above.
+It also shows how the interface for the visitor class =TreeWalker= is implemented.
+
+\begin{verbatim}
+// parser.h
+...
+class TreeNode {
+public:
+  virtual void accept(TreeWalker *t) = 0;
+};
+
+class Opnd : public TreeNode {
+public:
+  void accept(TreeWalker *t) override { t->visitOpnd(this); };
+};
+class Int : public Opnd {
+public:
+  Scanner::Token value;
+  Int(Scanner::Token v) { this->value = v; }
+  void accept(TreeWalker *t) override { t->visitInt(this); };
+};
+class Bool : public Opnd {
+public:
+  Scanner::Token value;
+  Bool(Scanner::Token v) { this->value = v; }
+  void accept(TreeWalker *t) override { t->visitBool(this); };
+};
+class String : public Opnd {
+public:
+  Scanner::Token value;
+  String(Scanner::Token v) { this->value = v; }
+  void accept(TreeWalker *t) override { t->visitString(this); };
+};
+class Ident : public Opnd {
+public:
+  Scanner::Token ident;
+  Ident(Scanner::Token v) { this->ident = v; }
+  void accept(TreeWalker *t) override { t->visitIdent(this); };
+};
+class Expr : public Opnd {
+public:
+  Opnd *left;
+  Scanner::Token op;
+  Opnd *right;
+  void accept(TreeWalker *t) override { t->visitExpr(this); };
+};
+class Binary : public Expr {
+public:
+  Binary(Parser::Opnd *left, Scanner::Token op, Parser::Opnd *right) {
+    this->left = left;
+    this->op = op;
+    this->right = right;
+  }
+  void accept(TreeWalker *t) override { t->visitBinary(this); };
+};
+class Unary : public Expr {
+public:
+  Unary(Scanner::Token op, Parser::Opnd *right) {
+    this->op = op;
+    this->right = right;
+  }
+  void accept(TreeWalker *t) override { t->visitUnary(this); };
+};
+...
+\end{verbatim}
+The code for these classes could be automatically generated, but I did not have enough time to do that.
+
+The parser output is ready to be interpreted.
+No changes are made to the syntax tree.
+Below is a program and the AST made from it by the parser.
+\begin{verbatim}
+var nTimes : int := 0;
+print "How many times? ";
+read nTimes;
+var x : int;
+for x in 0..nTimes-1 do
+print x;
+print " : Hello, World!\n";
+end for;
+assert (x = nTimes);
+\end{verbatim}
+\begin{verbatim}
+// AST for the program above
+(stmts
+    (var ident:nTimes type:INT expr:(0))
+    (print expr:("How many times? "))
+    (read expr:nTimes)
+    (var ident:x type:INT )
+    (for ident:x from:(0) to:(nTimes - (1)) body:
+        (print expr:(x))
+        (print expr:(" : Hello, World!\n"))
+    end for)
+    (assert expr:(x = (nTimes)))
+)
+\end{verbatim}
+The statement following ='('= in the AST corresponds to a production in the CFG and a class.
+=ident:[name]= and =type:[type]= are how identifier names and types are shown in a =var= statement.
+=expr:([expr])= is how expressions are printed.
+Expressions can be arbitrarily nested, as can for loops.
+
+***** Interpreter
+
+The interpreter contains a class which inherits =TreeWalker=, used for traversing the AST.
+It uses a type named =Variable= to store and operate on mini-pl variables.
+It stores named variables in a map.
+Variables can be looked up by their name from the map.
+The interpreter also contains a stack used for unnamed variables and intermediate results in expressions.
+
+Semantic analysis is handled by the interpreter dynamically.
+Variables are initialized as follows if no expression is provided; =bool:false=, =int:0=, and =string:""=.
+Variables can not be referenced, if they have not been initialized.
+Variable types are also checked by the interpreter.
+
+***** Future Improvements
+
+- Generate scanner code
+- Generate parser code
+- Add operator precedence
+- Finish REPL
+- Handle parse errors gracefully
+- Improve runtime error handling
+- Perform semantic analysis ahead of time
+
+* Work log
+
+| Date             | Hours | Progress                           |
+|------------------+-------+------------------------------------|
+| <2022-05-13 Fri> |     4 | Initialize repo and begin planning |
+|------------------+-------+------------------------------------|
+| TOTAL HOURS      |     4 |                                    |
+#+TBLFM: @>$2=vsum(@2..@-1)
+\pagebreak
+
+* Appendix A (MiniPL description)
+\includepdf[pages=-]{./attach/MiniPL.pdf}
+
+* Appendix B (Project description)
+
+\includepdf[pages=-]{./attach/CodeGenerationCourseProject.pdf}
