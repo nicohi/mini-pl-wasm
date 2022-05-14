@@ -181,7 +181,7 @@ public:
 bool parse(const std::string source);
 void parseAndWalk(const std::string source, TreeWalker *tw);
 
-Stmts *getProgram();
+// Stmts *getProgram();
 
 } // namespace Parser
 
