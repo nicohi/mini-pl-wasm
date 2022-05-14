@@ -4,9 +4,20 @@ Extended from [mini-pl-interpreter](https://github.com/nicohi/mini-pl-interprete
 Made for the course *Code generation (CSM14205)*. 
 
 ## Building
-cmake and gcc are required to compile the interpreter.
 To build the project run:
 `./build.sh`
+
+To build the project run:
+`./build.sh`
+### Requirements
+- cmake
+- gcc
+- (python3)
+
+## Running in browser
+`python -m http.server 8080`
+or 
+`python3 -m http.server 8080`
 
 ## Usage
 Any valid minipl program can be interpreted with:
