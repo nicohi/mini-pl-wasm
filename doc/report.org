@@ -16,8 +16,112 @@ Example programs are provided in =./test/=.
 * Implementation details
 I decided to make WAT (WebAssembly text format) the compile target.
 I chose this over the binary WASM format to ease readability.
+** Scanner
+
+The compiler uses a simple ad-hoc scanner and recognizes the following tokens.
+The main functionality of the scanner consists of a long switch statement which applies these regular expressions one character at a time, looking ahead as necessary.
+\begin{verbatim}
+COMMENT = "// | {* ... *}"
+STR_LIT = """ <chars> """
+PLUS = "+"
+MINUS = "-"
+MUL = "*"
+DIV = "/"
+MOD = "%"
+EQ = "="
+NEQ = "<>"
+LT = "<"
+GT = ">"
+LTE = "<="
+GTE = ">="
+LEFT_PAREN = "("
+RIGHT_PAREN = ")"
+LEFT_BRACKET = "["
+RIGHT_BRACKET = "]"
+ASSIGN = ":="
+DOT = "."
+COMMA = ","
+SEMICOLON = ";"
+COLON = ":"
+OR = "or"
+AND = "and"
+NOT = "not"
+IF = "if"
+THEN = "then"
+ELSE = "else"
+OF = "of"
+WHILE = "while"
+DO = "do"
+BEGIN = "begin"
+END = "end"
+VAR = "var"
+ARRAY = "array"
+PROCEDURE = "procedure"
+FUNCTION = "function"
+PROGRAM = "program"
+ASSERT = "assert"
+RETURN = "return"
+INT_LIT = <digits>
+REAL_LIT = <digits>'.' <digits> [ 'e' [ <sign> ] <digits>]
+ID = <letter> { <letter> | <digit> | '_' }
+SCAN_ERROR = ""
+SCAN_EOF = EOF
+\end{verbatim}
+The scanner handles errors by outputting tokens of type =ERROR= for unterminated strings and unexpected characters.
+These error tokens should then be handled by the parser.
+
+** Parser
+
+The parser implements each of the productions (everything enclosed in =<>=) in the CFG below as a class which is used to make up the syntax tree.
+\begin{verbatim}
+<program> ::= "program" <id> ";" { <procedure> | <function> } <main-block> "."
+<procedure> ::= "procedure" <id> "(" <parameters> ")" ";" <block> ";"
+<function> ::= "function" <id> "(" <parameters> ")" ":" <type> ";" <block> ";"
+<var-declaration> ::= "var" <id> { "," <id> } ":" <type>
+<parameters> ::= [ "var" ] <id> ":" <type> { "," [ "var" ] <id> ":" <type> } |
+                 <empty>
+<type> ::= <simple type> | <array type>
+<array type> ::= "array" "[" [<integer expr>] "]" "of" <simple type>
+<simple type> ::= <type id>
+<block> ::= "begin" <statement> { ";" <statement> } [ ";" ] "end"
+<statement> ::= <simple statement> | <structured statement> | <var-declaration>
+<empty> ::=
+<simple statement> ::= <assignment statement> | <call> | <return statement> |
+            <read statement> | <write statement> | <assert statement>
+<assignment statement> ::= <variable> ":=" <expr>
+<call> ::= <id> "(" <arguments> ")"
+<arguments> ::= expr { "," expr } | <empty>
+<return statement> ::= "return" [ expr ]
+<read statement> ::= "read" "(" <variable> { "," <variable> } ")"
+<write statement> ::= "writeln" "(" <arguments> ")"
+<assert statement> ::= "assert" "(" <Boolean expr> ")"
+<structured statement> ::= <block> | <if statement> | <while statement>
+<if statement> ::= "if" <Boolean expr> "then" <statement> |
+                   "if" <Boolean expr> "then" <statement> "else" <statement>
+<while statement> ::= "while" <Boolean expr> "do" <statement>
+<expr> ::= <simple expr> |
+           <simple expr> <relational operator> <simple expr>
+<simple expr> ::= [ <sign> ] <term> { <adding operator> <term> }
+<term> ::= <factor> { <multiplying operator> <factor> }
+<factor> ::= <call> | <variable> | <literal> | "(" <expr> ")" |
+             "not" <factor> | <factor> "." "size"
+<variable> ::= <variable id> [ "[" <integer expr> "]" ]
+<relational operator> ::= "=" | "<>" | "<" | "<=" | ">=" | ">"
+<sign> ::= "+" | "-"
+<negation> ::= "not"
+<adding operator> ::= "+" | "-" | "or"
+<multiplying operator> ::= "*" | "/" | "%" | "and"
+\end{verbatim}
+
+
 ** Standard library
 Since module linking is currently not possible in WASM, I decided to simply add all the standard library functions to the same module as the output program.
+IO and memory management are handled by Javascript and WASM functions in =src/wasmlib/wasmlib.js= and =src/wasmlib/wasmlib.wat=.
+** a
+* Challenges
+I encountered a tricky bug in the parser relating to how references to tokens were being passed around.
+This took quite a bit of effort and time to resolve.
+
 * Work log
 
 | Date             | Hours | Progress                           |
