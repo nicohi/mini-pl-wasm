@@ -6,7 +6,7 @@
 
 namespace ParserUtils {
 class PrintWalker;
-void pprint(Parser::Stmts *ss);
+void pprint(Parser::Program *p);
 
 #endif // PARSER_UTILS_H_
 }

@@ -1,5 +1,5 @@
 #include "compiler.h"
-#include "interpreter.h"
+//#include "interpreter.h"
 #include <cerrno>
 #include <fstream>
 #include <iostream>
@@ -29,7 +29,7 @@ static int runFile(string path) {
     cerr << "Failed to read file: " << path << endl;
     return errno;
   }
-  Interpreter::interpret(source);
+  // Interpreter::interpret(source);
   return errno;
 }
 
@@ -64,7 +64,7 @@ static void repl() {
     cin >> line;
     if (cin.eof())
       break;
-    Interpreter::interpret(line);
+    // Interpreter::interpret(line);
   }
   cout << "\r";
 }

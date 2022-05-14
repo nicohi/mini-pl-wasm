@@ -52,7 +52,7 @@ Token *copyToken(Token *t) {
 }
 
 Token *errorToken(const char *msg) {
-  Token *t = makeToken(TokenType::ERROR);
+  Token *t = makeToken(TokenType::SCAN_ERROR);
   t->message = msg;
   return t;
 }
@@ -132,7 +132,7 @@ static Token *string() {
   if (isEnd())
     return errorToken("Unterminated string.");
   advance();
-  return makeToken(TokenType::STRING_LIT);
+  return makeToken(TokenType::STR_LIT);
 }
 
 static bool isDigit(char c) { return '0' <= c && c <= '9'; }
@@ -141,16 +141,31 @@ static bool isAlpha(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
-static Token *integer() {
+static Token *number() {
   while (isDigit(peek()))
     advance();
-  return makeToken(TokenType::INTEGER_LIT);
+  if (match('.')) {
+    if (!isDigit(peek()))
+      return errorToken("Expected digit after '.'");
+    while (isDigit(peek()))
+      advance();
+    if (match('e')) {
+      match('+');
+      match('-');
+      if (!isDigit(peek()))
+        return errorToken("Expected at least one digit after 'e'");
+      while (isDigit(peek()))
+        advance();
+      return makeToken(TokenType::REAL_LIT);
+    }
+  }
+  return makeToken(TokenType::INT_LIT);
 }
 
 static Token *identifier() {
   while (isAlpha(peek()) || isDigit(peek()) || peek() == '_')
     advance();
-  return makeToken(TokenType::IDENTIFIER);
+  return makeToken(TokenType::ID);
 }
 
 Token *scanToken() {
@@ -165,41 +180,123 @@ Token *scanToken() {
       gotoChar('\n');
       return makeToken(TokenType::COMMENT);
     }
+    return makeToken(TokenType::DIV);
+  case '{':
     if (peek() == '*') {
       advance();
-      for (;;) {
-        gotoChar('*');
-        if (match('/'))
+      while (gotoChar('*')) {
+        if (match('}'))
           return makeToken(TokenType::COMMENT);
       }
-      return makeToken(TokenType::COMMENT);
     }
-    return makeToken(TokenType::SLASH);
+    return errorToken("Expected '*}'");
+  case '+':
+    return makeToken(TokenType::PLUS);
+  case '-':
+    return makeToken(TokenType::MINUS);
+  case '*':
+    return makeToken(TokenType::MUL);
+  case '%':
+    return makeToken(TokenType::MOD);
+  case '=':
+    return makeToken(TokenType::EQ);
+  case '<':
+    if (match('>'))
+      return makeToken(TokenType::NEQ);
+    if (match('='))
+      return makeToken(TokenType::LTE);
+    return makeToken(TokenType::LT);
+  case '>':
+    if (match('='))
+      return makeToken(TokenType::GTE);
+    return makeToken(TokenType::GT);
+  case '&':
+    return makeToken(TokenType::AND);
   case '(':
     return makeToken(TokenType::LEFT_PAREN);
   case ')':
     return makeToken(TokenType::RIGHT_PAREN);
-  case '-':
-    return makeToken(TokenType::MINUS);
-  case '+':
-    return makeToken(TokenType::PLUS);
-  case '*':
-    return makeToken(TokenType::ASTERISK);
-  case '=':
-    return makeToken(TokenType::EQUAL);
-  case '<':
-    return makeToken(TokenType::LESS);
-  case '&':
-    return makeToken(TokenType::AND);
-  case '!':
-    return makeToken(TokenType::NOT);
-  case ';':
-    return makeToken(TokenType::SEMICOLON);
+  case '[':
+    return makeToken(TokenType::LEFT_BRACKET);
+  case ']':
+    return makeToken(TokenType::RIGHT_BRACKET);
   case ':':
     return makeToken(match('=') ? TokenType::ASSIGN : TokenType::COLON);
   case '.':
-    if (match('.'))
-      return makeToken(TokenType::RANGE);
+    return makeToken(TokenType::DOT);
+  case ',':
+    return makeToken(TokenType::COMMA);
+  case ';':
+    return makeToken(TokenType::SEMICOLON);
+  case 'o':
+    if (matchS("r ")) {
+      scanner.current--;
+      return makeToken(TokenType::OR);
+    }
+    if (matchS("f ")) {
+      scanner.current--;
+      return makeToken(TokenType::OF);
+    }
+    break;
+  case 'a':
+    if (matchS("nd ")) {
+      scanner.current--;
+      return makeToken(TokenType::AND);
+    }
+    if (matchS("rray ")) {
+      scanner.current--;
+      return makeToken(TokenType::ARRAY);
+    }
+    if (matchS("ssert ")) {
+      scanner.current--;
+      return makeToken(TokenType::ASSERT);
+    }
+    break;
+  case 'n':
+    if (matchS("ot ")) {
+      scanner.current--;
+      return makeToken(TokenType::NOT);
+    }
+    break;
+  case 'i':
+    if (matchS("f ")) {
+      scanner.current--;
+      return makeToken(TokenType::IF);
+    }
+    break;
+  case 't':
+    if (matchS("hen ")) {
+      scanner.current--;
+      return makeToken(TokenType::THEN);
+    }
+    break;
+  case 'e':
+    if (matchS("lse ")) {
+      scanner.current--;
+      return makeToken(TokenType::ELSE);
+    }
+    if (matchS("nd ")) {
+      scanner.current--;
+      return makeToken(TokenType::END);
+    }
+    break;
+  case 'w':
+    if (matchS("hile ")) {
+      scanner.current--;
+      return makeToken(TokenType::WHILE);
+    }
+    break;
+  case 'd':
+    if (matchS("o ")) {
+      scanner.current--;
+      return makeToken(TokenType::WHILE);
+    }
+    break;
+  case 'b':
+    if (matchS("egin ")) {
+      scanner.current--;
+      return makeToken(TokenType::BEGIN);
+    }
     break;
   case 'v':
     if (matchS("ar ")) {
@@ -207,79 +304,27 @@ Token *scanToken() {
       return makeToken(TokenType::VAR);
     }
     break;
-  case 'f':
-    if (matchS("or ")) {
+  case 'p':
+    if (matchS("rocedure ")) {
       scanner.current--;
-      return makeToken(TokenType::FOR);
+      return makeToken(TokenType::PROCEDURE);
     }
-    if (matchS("alse ")) {
+    if (matchS("rogram ")) {
       scanner.current--;
-      return makeToken(TokenType::BOOLEAN_LIT);
-    }
-    break;
-  case 'e':
-    if (matchS("nd ")) {
-      scanner.current--;
-      return makeToken(TokenType::END);
-    }
-    break;
-  case 'i':
-    if (matchS("nt ")) {
-      scanner.current--;
-      return makeToken(TokenType::INT);
-    }
-    if (matchS("n ")) {
-      scanner.current--;
-      return makeToken(TokenType::IN);
-    }
-    break;
-  case 'd':
-    if (matchS("o ")) {
-      scanner.current--;
-      return makeToken(TokenType::DO);
+      return makeToken(TokenType::PROGRAM);
     }
     break;
   case 'r':
-    if (matchS("ead ")) {
+    if (matchS("eturn ")) {
       scanner.current--;
-      return makeToken(TokenType::READ);
-    }
-    break;
-  case 'p':
-    if (matchS("rint ")) {
-      scanner.current--;
-      return makeToken(TokenType::PRINT);
-    }
-    break;
-  case 's':
-    if (matchS("tring ")) {
-      scanner.current--;
-      return makeToken(TokenType::STRING);
-    }
-    break;
-  case 'b':
-    if (matchS("ool ")) {
-      scanner.current--;
-      return makeToken(TokenType::BOOL);
-    }
-    break;
-  case 'a':
-    if (matchS("ssert ")) {
-      scanner.current--;
-      return makeToken(TokenType::ASSERT);
-    }
-    break;
-  case 't':
-    if (matchS("rue ")) {
-      scanner.current--;
-      return makeToken(TokenType::BOOLEAN_LIT);
+      return makeToken(TokenType::RETURN);
     }
     break;
   case '"':
     return string();
   }
   if (isDigit(c))
-    return integer();
+    return number();
   if (isAlpha(c))
     return identifier();
   return errorToken("Unexpected character.");

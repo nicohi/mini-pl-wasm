@@ -7,42 +7,67 @@
 
 namespace Parser {
 
-class Opnd;
-class Int;
-class Bool;
-class String;
-class Ident;
-class Expr;
-class Binary;
-class Unary;
-class Single;
-class Stmt;
-class Stmts;
-class Var;
+class Program;
+class Procedure;
+class Function;
+class Type;
+class Array;
+class Block;
+class Statement;
+class SimpleStatement;
+class StructuredStatement;
+class VarDecl;
 class Assign;
-class For;
+class Call;
+class Return;
 class Read;
-class Print;
+class Write;
 class Assert;
+class If;
+class While;
+class Expr;
+class SimpleExpr;
+class RelationalOperator;
+class AddingOperator;
+class Term;
+class Factor;
+class MultiplyingOperator;
+class Variable;
+class IntegerLiteral;
+class RealLiteral;
+class StringLiteral;
+
 class TreeWalker {
 public:
-  virtual void visitOpnd(const Opnd *i) = 0;
-  virtual void visitInt(const Int *i) = 0;
-  virtual void visitBool(const Bool *b) = 0;
-  virtual void visitString(const String *s) = 0;
-  virtual void visitIdent(const Ident *i) = 0;
-  virtual void visitExpr(const Expr *e) = 0;
-  virtual void visitBinary(const Binary *b) = 0;
-  virtual void visitUnary(const Unary *u) = 0;
-  virtual void visitSingle(const Single *s) = 0;
-  virtual void visitStmt(const Stmt *s) = 0;
-  virtual void visitStmts(const Stmts *s) = 0;
-  virtual void visitVar(const Var *v) = 0;
-  virtual void visitAssign(const Assign *a) = 0;
-  virtual void visitFor(const For *f) = 0;
-  virtual void visitRead(const Read *r) = 0;
-  virtual void visitPrint(const Print *p) = 0;
-  virtual void visitAssert(const Assert *a) = 0;
+  virtual void visitProgram(const Program *i) = 0;
+  virtual void visitProcedure(const Procedure *i) = 0;
+  virtual void visitFunction(const Function *i) = 0;
+  virtual void visitType(const Type *i) = 0;
+  virtual void visitArray(const Array *i) = 0;
+  virtual void visitBlock(const Block *i) = 0;
+  virtual void visitStatement(const Statement *i) = 0;
+  virtual void visitSimpleStatement(const SimpleStatement *i) = 0;
+  virtual void visitStructuredStatement(const StructuredStatement *i) = 0;
+  virtual void visitVarDecl(const VarDecl *i) = 0;
+  virtual void visitAssign(const Assign *i) = 0;
+  virtual void visitCall(const Call *i) = 0;
+  virtual void visitReturn(const Return *i) = 0;
+  virtual void visitRead(const Read *i) = 0;
+  virtual void visitWrite(const Write *i) = 0;
+  virtual void visitAssert(const Assert *i) = 0;
+  virtual void visitIf(const If *i) = 0;
+  virtual void visitWhile(const While *i) = 0;
+  virtual void visitExpr(const Expr *i) = 0;
+  virtual void visitSimpleExpr(const SimpleExpr *i) = 0;
+  virtual void visitRelationalOperator(const RelationalOperator *i) = 0;
+  virtual void visitAddingOperator(const AddingOperator *i) = 0;
+  virtual void visitTerm(const Term *i) = 0;
+  virtual void visitFactor(const Factor *i) = 0;
+  virtual void visitMultiplyingOperator(const MultiplyingOperator *i) = 0;
+  virtual void visitVariable(const Variable *i) = 0;
+  virtual void visitIntegerLiteral(const IntegerLiteral *i) = 0;
+  virtual void visitRealLiteral(const RealLiteral *i) = 0;
+  virtual void visitStringLiteral(const StringLiteral *i) = 0;
 };
 
 class TreeNode {
@@ -50,132 +75,9 @@ public:
   virtual void accept(TreeWalker *t) = 0;
 };
 
-class Opnd : public TreeNode {
+class Program : public TreeNode {
 public:
-  void accept(TreeWalker *t) override { t->visitOpnd(this); };
-};
-class Int : public Opnd {
-public:
-  Scanner::Token *value;
-  Int(Scanner::Token *v) { this->value = v; }
-  void accept(TreeWalker *t) override { t->visitInt(this); };
-};
-class Bool : public Opnd {
-public:
-  Scanner::Token *value;
-  Bool(Scanner::Token *v) { this->value = v; }
-  void accept(TreeWalker *t) override { t->visitBool(this); };
-};
-class String : public Opnd {
-public:
-  Scanner::Token *value;
-  String(Scanner::Token *v) { this->value = v; }
-  void accept(TreeWalker *t) override { t->visitString(this); };
-};
-class Ident : public Opnd {
-public:
-  Scanner::Token *ident;
-  Ident(Scanner::Token *v) { this->ident = v; }
-  void accept(TreeWalker *t) override { t->visitIdent(this); };
-};
-class Expr : public Opnd {
-public:
-  Opnd *left;
-  Scanner::Token *op;
-  Opnd *right;
-  void accept(TreeWalker *t) override { t->visitExpr(this); };
-};
-class Binary : public Expr {
-public:
-  Binary(Parser::Opnd *left, Scanner::Token *op, Parser::Opnd *right) {
-    this->left = left;
-    this->op = op;
-    this->right = right;
-  }
-  void accept(TreeWalker *t) override { t->visitBinary(this); };
-};
-class Unary : public Expr {
-public:
-  Unary(Scanner::Token *op, Parser::Opnd *right) {
-    this->op = op;
-    this->right = right;
-  }
-  void accept(TreeWalker *t) override { t->visitUnary(this); };
-};
-class Single : public Expr {
-public:
-  Single(Parser::Opnd *right) { this->right = right; }
-  void accept(TreeWalker *t) override { t->visitSingle(this); };
-};
-class Stmt : public TreeNode {
-public:
-  std::string info;
-  Stmt() { info = "dummy statement"; }
-  void accept(TreeWalker *t) override { t->visitStmt(this); };
-};
-class Stmts : public TreeNode {
-public:
-  std::list<TreeNode *> stmts;
-  void append(Stmt *s) { stmts.push_back(s); }
-  void accept(TreeWalker *t) override { t->visitStmts(this); };
-};
-class Var : public Stmt {
-public:
-  Scanner::Token *ident;
-  Scanner::Token *type;
-  Expr *expr;
-  Var() { info = "Var"; }
-  void accept(TreeWalker *t) override { t->visitVar(this); };
-};
-class Assign : public Stmt {
-public:
-  Scanner::Token *ident;
-  Expr *expr;
-  Assign(Scanner::Token *id, Parser::Expr *e) {
-    this->ident = id;
-    this->expr = e;
-    info = "Assign";
-  }
-  void accept(TreeWalker *t) override { t->visitAssign(this); };
-};
-class For : public Stmt {
-public:
-  Scanner::Token *ident;
-  Expr *from;
-  Expr *to;
-  Stmts *body;
-  For(Scanner::Token *id, Parser::Expr *f, Parser::Expr *t, Parser::Stmts *b) {
-    this->ident = id;
-    this->from = f;
-    this->to = t;
-    this->body = b;
-    info = "For";
-  }
-  void accept(TreeWalker *t) override { t->visitFor(this); };
-};
-class Read : public Stmt {
-public:
-  Scanner::Token *ident;
-  Read(Scanner::Token *i) {
-    this->ident = i;
-    info = "Read";
-  }
-  void accept(TreeWalker *t) override { t->visitRead(this); };
-};
-class Print : public Stmt {
-public:
-  Expr *expr;
-  Print() { info = "Print"; }
-  void accept(TreeWalker *t) override { t->visitPrint(this); };
-};
-class Assert : public Stmt {
-public:
-  Expr *expr;
-  Assert(Parser::Expr *e) {
-    this->expr = e;
-    info = "Assert";
-  }
-  void accept(TreeWalker *t) override { t->visitAssert(this); };
+  void accept(TreeWalker *t) override { t->visitProgram(this); };
 };
 
 bool parse(const std::string source);
