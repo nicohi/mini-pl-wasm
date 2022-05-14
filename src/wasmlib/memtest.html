@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <!-- <link rel="stylesheet" href="bootstrap.min.css"> -->
+    <title>Memory</title>
+  </head>
+  <body>
+    Interact with the program using the dev console (F12).
+    <div class="container">
+      <h1>Memory</h1>
+      <div>Your memory instance is <span id="mem"></span> bytes.</div>
+      <div>It has this many pages: <span id="pages"></span>.</div>
+      <div>Uint32Buffer[0] = <span id="firstint"></span>.</div>
+      <div>Uint8Buffer[0-4] = <span id="firstbytes"></span>.</div>
+    </div>
+
+    <button id="expand">Expand</button>
+    <button id="logmem">print 10</button>
+
+
+    <script src="/wasmlib.js"></script>
+
+    <!-- https://www.oreilly.com/library/view/webassembly-the-definitive/9781492089834/ch04.html#idm45510257236432 -->
+  </body>
+</html>
