@@ -41,6 +41,16 @@ static Token *makeToken(TokenType type) {
   return t;
 }
 
+Token *copyToken(Token *t) {
+  Token *tn = new Token();
+  tn->type = t->type;
+  tn->start = t->start;
+  tn->message = t->message;
+  tn->length = t->length;
+  tn->line = t->line;
+  return tn;
+}
+
 Token *errorToken(const char *msg) {
   Token *t = makeToken(TokenType::ERROR);
   t->message = msg;

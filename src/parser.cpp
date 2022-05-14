@@ -143,15 +143,17 @@ static Opnd *operand() {
 static Expr *expression() {
   if (isUnaryOp()) {
     advance();
-    return new Unary(parser.previous, operand());
+    Scanner::Token *op = Scanner::copyToken(parser.previous);
+    return new Unary(op, operand());
   }
   Opnd *left = operand();
   if (isBinaryOp()) {
     advance();
-    print(parser.previous);
-    printCurrent("");
-    std::cout << "\n";
-    return new Binary(left, parser.previous, expression());
+    // print(parser.previous);
+    // printCurrent("");
+    // std::cout << "\n";
+    Scanner::Token *op = Scanner::copyToken(parser.previous);
+    return new Binary(left, op, expression());
   } else
     return new Single(left);
 }
