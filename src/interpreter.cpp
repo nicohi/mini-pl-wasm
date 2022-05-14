@@ -37,45 +37,47 @@ public:
   void update(std::string s) {
     if (constant)
       error("Tried to write to constant variable");
-    if (type == Scanner::TokenType::INT)
+    if (type == Scanner::TokenType::INT_LIT)
       update(std::stoi(s));
-    if (type == Scanner::TokenType::BOOL) {
-      update(s[0] == 't');
-    } else
-      string_value = s;
+    // if (type == Scanner::TokenType::BOOL) {
+    // update(s[0] == 't');
+    //} else
+    // string_value = s;
   }
   void set(Scanner::TokenType t, std::string s) {
     constant = false;
-    if (t == Scanner::TokenType::INT || t == Scanner::TokenType::INTEGER_LIT) {
-      type = Scanner::TokenType::INT;
-      this->update(std::stoi(s));
-    } else if (t == Scanner::TokenType::BOOL ||
-               t == Scanner::TokenType::BOOLEAN_LIT) {
-      type = Scanner::TokenType::BOOL;
-      this->update(s[0] == 't');
-    } else if (t == Scanner::TokenType::STRING) {
-      type = Scanner::TokenType::STRING;
-      this->update(s);
-    } else if (t == Scanner::TokenType::STRING_LIT) {
-      // strip ""
-      type = Scanner::TokenType::STRING;
-      this->update(s.substr(1, s.length() - 2));
-    } else
-      error("Can not set variable of type:" + Scanner::getName(t));
+    //   if (t == Scanner::TokenType::INT || t ==
+    //   Scanner::TokenType::INTEGER_LIT) {
+    //     type = Scanner::TokenType::INT;
+    //     this->update(std::stoi(s));
+    //   } else if (t == Scanner::TokenType::BOOL ||
+    //              t == Scanner::TokenType::BOOLEAN_LIT) {
+    //     type = Scanner::TokenType::BOOL;
+    //     this->update(s[0] == 't');
+    //   } else if (t == Scanner::TokenType::STRING) {
+    //     type = Scanner::TokenType::STRING;
+    //     this->update(s);
+    //   } else if (t == Scanner::TokenType::STRING_LIT) {
+    //     // strip ""
+    //     type = Scanner::TokenType::STRING;
+    //     this->update(s.substr(1, s.length() - 2));
+    //   } else
+    //     error("Can not set variable of type:" + Scanner::getName(t));
   }
   void set(Scanner::TokenType t) {
     constant = false;
     type = t;
-    if (t == Scanner::TokenType::INT || t == Scanner::TokenType::INTEGER_LIT) {
-      this->update(0);
-    } else if (t == Scanner::TokenType::BOOL ||
-               t == Scanner::TokenType::BOOLEAN_LIT) {
-      this->update(false);
-    } else if (t == Scanner::TokenType::STRING ||
-               t == Scanner::TokenType::STRING_LIT) {
-      this->update("");
-    } else
-      error("Can not set variable of type:" + Scanner::getName(t));
+    //   if (t == Scanner::TokenType::INT || t ==
+    //   Scanner::TokenType::INTEGER_LIT) {
+    //     this->update(0);
+    //   } else if (t == Scanner::TokenType::BOOL ||
+    //              t == Scanner::TokenType::BOOLEAN_LIT) {
+    //     this->update(false);
+    //   } else if (t == Scanner::TokenType::STRING ||
+    //              t == Scanner::TokenType::STRING_LIT) {
+    //     this->update("");
+    //   } else
+    //     error("Can not set variable of type:" + Scanner::getName(t));
   }
   int getInt() { return int_value; }
   bool getBool() { return bool_value; }
@@ -98,7 +100,7 @@ void init() {
   opMap.emplace("+", [](Variable *l, Variable *r) {
     Variable *n = new Variable();
     n->set(l->type);
-    if (l->type == Scanner::TokenType::INT)
+    if (l->type == Scanner::TokenType::INT_LIT)
       n->update(l->getInt() + r->getInt());
     else
       n->update(l->getString() + r->getString());
@@ -131,10 +133,10 @@ void init() {
   opMap.emplace("=", [](Variable *l, Variable *r) {
     Variable *n = new Variable();
     n->set(l->type);
-    if (l->type == Scanner::TokenType::INTEGER_LIT)
+    if (l->type == Scanner::TokenType::INT_LIT)
       n->update(l->getInt() == r->getInt());
-    else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
-      n->update(l->getBool() == r->getBool());
+    // else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
+    //   n->update(l->getBool() == r->getBool());
     else
       n->update(l->getString() == r->getString());
     return n;
@@ -142,10 +144,10 @@ void init() {
   opMap.emplace("<", [](Variable *l, Variable *r) {
     Variable *n = new Variable();
     n->set(l->type);
-    if (l->type == Scanner::TokenType::INTEGER_LIT)
+    if (l->type == Scanner::TokenType::INT_LIT)
       n->update(l->getInt() < r->getInt());
-    else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
-      n->update(l->getBool() < r->getBool());
+    // else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
+    //   n->update(l->getBool() < r->getBool());
     else
       n->update(l->getString() < r->getString());
     return n;
@@ -154,10 +156,10 @@ void init() {
   opMap.emplace("!", [](Variable *l, Variable *r) {
     Variable *n = new Variable();
     n->set(r->type);
-    if (r->type == Scanner::TokenType::INTEGER_LIT)
+    if (r->type == Scanner::TokenType::INT_LIT)
       n->update(!r->getInt());
-    else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
-      n->update(!r->getBool());
+    // else if (l->type == Scanner::TokenType::BOOLEAN_LIT)
+    //   n->update(!r->getBool());
     return n;
   });
 }
@@ -235,17 +237,17 @@ public:
   void visitOpnd(const Parser::Opnd *i) override { error("NOT IMPLEMENTED"); }
   void visitInt(const Parser::Int *i) override {
     Variable *v = new Variable();
-    v->set(Scanner::TokenType::INTEGER_LIT, toStr(i->value));
+    // v->set(Scanner::TokenType::INTEGER_LIT, toStr(i->value));
     varStack.push(v);
   }
   void visitBool(const Parser::Bool *b) override {
     Variable *v = new Variable();
-    v->set(Scanner::TokenType::BOOLEAN_LIT, toStr(b->value));
+    // v->set(Scanner::TokenType::BOOLEAN_LIT, toStr(b->value));
     varStack.push(v);
   }
   void visitString(const Parser::String *s) override {
     Variable *v = new Variable();
-    v->set(Scanner::TokenType::STRING_LIT, toStr(s->value));
+    // v->set(Scanner::TokenType::STRING_LIT, toStr(s->value));
     varStack.push(v);
   }
   void visitIdent(const Parser::Ident *i) override {
