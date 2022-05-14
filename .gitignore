@@ -12,3 +12,4 @@ _deps
 build
 doc/*.bbl
 doc/*.tex
+src/wasmlib/*.wasm
