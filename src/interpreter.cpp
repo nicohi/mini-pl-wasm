@@ -85,10 +85,10 @@ public:
 std::map<std::string, Variable *> varMap;
 std::stack<Variable *> varStack;
 
-std::string toStr(Scanner::Token t) {
+std::string toStr(Scanner::Token *t) {
   std::string s = "";
-  for (int i = 0; i < t.length; i++)
-    s = s + t.start[i];
+  for (int i = 0; i < t->length; i++)
+    s = s + t->start[i];
   return s;
 }
 
@@ -296,7 +296,7 @@ public:
       // + id + "' to expression of type " + Scanner::getName(v->type));
     } else {
       Variable *var = new Variable();
-      var->set(v->type.type);
+      var->set(v->type->type);
       varMap[id] = var;
     }
   }

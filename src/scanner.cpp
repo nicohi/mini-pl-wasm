@@ -26,24 +26,24 @@ void init(const std::string source) {
   scanner.line = 1;
 }
 
-std::string getName(Token t) { return TokenName[static_cast<int>(t.type)]; }
+std::string getName(Token *t) { return TokenName[static_cast<int>(t->type)]; }
 std::string getName(TokenType t) { return TokenName[static_cast<int>(t)]; }
 
 static bool isEnd() { return *scanner.current == '\0'; }
 
-static Token makeToken(TokenType type) {
-  Token t;
-  t.type = type;
-  t.start = scanner.start;
-  t.length = (int)(scanner.current - scanner.start);
-  t.line = scanner.line;
-  t.message = "";
+static Token *makeToken(TokenType type) {
+  Token *t = new Token();
+  t->type = type;
+  t->start = scanner.start;
+  t->length = (int)(scanner.current - scanner.start);
+  t->line = scanner.line;
+  t->message = "";
   return t;
 }
 
-Token errorToken(const char *msg) {
-  Token t = makeToken(TokenType::ERROR);
-  t.message = msg;
+Token *errorToken(const char *msg) {
+  Token *t = makeToken(TokenType::ERROR);
+  t->message = msg;
   return t;
 }
 
@@ -108,7 +108,7 @@ static bool gotoChar(char c) {
   return false;
 }
 
-static Token string() {
+static Token *string() {
   while (peek() != '"' && !isEnd()) {
     if (peek() == '\\') {
       if (scanner.current[1] == '\"') {
@@ -131,19 +131,19 @@ static bool isAlpha(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
-static Token integer() {
+static Token *integer() {
   while (isDigit(peek()))
     advance();
   return makeToken(TokenType::INTEGER_LIT);
 }
 
-static Token identifier() {
+static Token *identifier() {
   while (isAlpha(peek()) || isDigit(peek()) || peek() == '_')
     advance();
   return makeToken(TokenType::IDENTIFIER);
 }
 
-Token scanToken() {
+Token *scanToken() {
   skipWhitespace();
   scanner.start = scanner.current;
   if (isEnd())

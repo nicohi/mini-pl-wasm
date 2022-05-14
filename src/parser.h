@@ -56,38 +56,38 @@ public:
 };
 class Int : public Opnd {
 public:
-  Scanner::Token value;
-  Int(Scanner::Token v) { this->value = v; }
+  Scanner::Token *value;
+  Int(Scanner::Token *v) { this->value = v; }
   void accept(TreeWalker *t) override { t->visitInt(this); };
 };
 class Bool : public Opnd {
 public:
-  Scanner::Token value;
-  Bool(Scanner::Token v) { this->value = v; }
+  Scanner::Token *value;
+  Bool(Scanner::Token *v) { this->value = v; }
   void accept(TreeWalker *t) override { t->visitBool(this); };
 };
 class String : public Opnd {
 public:
-  Scanner::Token value;
-  String(Scanner::Token v) { this->value = v; }
+  Scanner::Token *value;
+  String(Scanner::Token *v) { this->value = v; }
   void accept(TreeWalker *t) override { t->visitString(this); };
 };
 class Ident : public Opnd {
 public:
-  Scanner::Token ident;
-  Ident(Scanner::Token v) { this->ident = v; }
+  Scanner::Token *ident;
+  Ident(Scanner::Token *v) { this->ident = v; }
   void accept(TreeWalker *t) override { t->visitIdent(this); };
 };
 class Expr : public Opnd {
 public:
   Opnd *left;
-  Scanner::Token op;
+  Scanner::Token *op;
   Opnd *right;
   void accept(TreeWalker *t) override { t->visitExpr(this); };
 };
 class Binary : public Expr {
 public:
-  Binary(Parser::Opnd *left, Scanner::Token op, Parser::Opnd *right) {
+  Binary(Parser::Opnd *left, Scanner::Token *op, Parser::Opnd *right) {
     this->left = left;
     this->op = op;
     this->right = right;
@@ -96,7 +96,7 @@ public:
 };
 class Unary : public Expr {
 public:
-  Unary(Scanner::Token op, Parser::Opnd *right) {
+  Unary(Scanner::Token *op, Parser::Opnd *right) {
     this->op = op;
     this->right = right;
   }
@@ -121,17 +121,17 @@ public:
 };
 class Var : public Stmt {
 public:
-  Scanner::Token ident;
-  Scanner::Token type;
+  Scanner::Token *ident;
+  Scanner::Token *type;
   Expr *expr;
   Var() { info = "Var"; }
   void accept(TreeWalker *t) override { t->visitVar(this); };
 };
 class Assign : public Stmt {
 public:
-  Scanner::Token ident;
+  Scanner::Token *ident;
   Expr *expr;
-  Assign(Scanner::Token id, Parser::Expr *e) {
+  Assign(Scanner::Token *id, Parser::Expr *e) {
     this->ident = id;
     this->expr = e;
     info = "Assign";
@@ -140,11 +140,11 @@ public:
 };
 class For : public Stmt {
 public:
-  Scanner::Token ident;
+  Scanner::Token *ident;
   Expr *from;
   Expr *to;
   Stmts *body;
-  For(Scanner::Token id, Parser::Expr *f, Parser::Expr *t, Parser::Stmts *b) {
+  For(Scanner::Token *id, Parser::Expr *f, Parser::Expr *t, Parser::Stmts *b) {
     this->ident = id;
     this->from = f;
     this->to = t;
@@ -155,8 +155,8 @@ public:
 };
 class Read : public Stmt {
 public:
-  Scanner::Token ident;
-  Read(Scanner::Token i) {
+  Scanner::Token *ident;
+  Read(Scanner::Token *i) {
     this->ident = i;
     info = "Read";
   }

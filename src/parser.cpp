@@ -7,8 +7,8 @@
 namespace Parser {
 
 struct ParserState {
-  Scanner::Token current;
-  Scanner::Token previous;
+  Scanner::Token *current;
+  Scanner::Token *previous;
   bool hadError = false;
   bool panicMode = false;
 };
@@ -37,24 +37,30 @@ struct ParseRule {
 };
 std::map<Scanner::TokenType, ParseRule> rules;
 
+static void print(Scanner::Token *t) {
+  fprintf(stderr, "'%.*s'", t->length, t->start);
+}
+
 static void printCurrent(std::string msg) {
   std::cout << msg << Scanner::getName(parser.current) << std::endl;
 }
 
-static bool isCurrent(Scanner::TokenType t) { return parser.current.type == t; }
+static bool isCurrent(Scanner::TokenType t) {
+  return parser.current->type == t;
+}
 
-static void errorAt(Scanner::Token t, std::string msg) {
+static void errorAt(Scanner::Token *t, std::string msg) {
   if (parser.panicMode)
     return;
   parser.panicMode = true;
-  fprintf(stderr, "[line %d] Error", t.line);
+  fprintf(stderr, "[line %d] Error", t->line);
 
-  if (t.type == Scanner::TokenType::SCAN_EOF) {
+  if (t->type == Scanner::TokenType::SCAN_EOF) {
     fprintf(stderr, " at end");
-  } else if (t.type == Scanner::TokenType::ERROR) {
-    fprintf(stderr, " %s", t.message);
+  } else if (t->type == Scanner::TokenType::ERROR) {
+    fprintf(stderr, " %s", t->message);
   } else {
-    fprintf(stderr, " at '%.*s'", t.length, t.start);
+    fprintf(stderr, " at '%.*s'", t->length, t->start);
   }
 
   fprintf(stderr, ": %s\n", msg.c_str());
@@ -72,7 +78,7 @@ static void advance() {
 }
 
 static void consume(Scanner::TokenType type, std::string msg) {
-  if (parser.current.type == type) {
+  if (parser.current->type == type) {
     advance();
     return;
   }
@@ -141,6 +147,9 @@ static Expr *expression() {
   Opnd *left = operand();
   if (isBinaryOp()) {
     advance();
+    print(parser.previous);
+    printCurrent(" ");
+    std::cout << "\n";
     return new Binary(left, parser.previous, expression());
   } else
     return new Single(left);
@@ -167,7 +176,7 @@ static Var *var() {
 
 static Assign *assign() {
   advance();
-  Scanner::Token id = parser.previous;
+  Scanner::Token *id = parser.previous;
   consume(Scanner::TokenType::ASSIGN, "Expected ':=' after identifier");
   Expr *e = expression();
   return new Assign(id, e);
@@ -199,7 +208,7 @@ static Stmts *statements();
 static For *forLoop() {
   advance();
   consume(Scanner::TokenType::IDENTIFIER, "Expected identifier after for");
-  Scanner::Token id = parser.previous;
+  Scanner::Token *id = parser.previous;
   consume(Scanner::TokenType::IN, "Expected 'in' after identifier");
   Expr *from = expression();
   consume(Scanner::TokenType::RANGE, "Expected '..' after expression");
@@ -238,7 +247,7 @@ static Stmts *statements() {
       continue;
     }
     if (isCurrent(Scanner::TokenType::ERROR)) {
-      errorAt(parser.current, parser.current.message);
+      errorAt(parser.current, parser.current->message);
       exitPanic();
       continue;
     }
@@ -255,7 +264,7 @@ static Stmts *statements() {
 
 class PrintWalker : public TreeWalker {
 public:
-  void printToken(Scanner::Token t) { printf("%.*s", t.length, t.start); }
+  void printToken(Scanner::Token *t) { printf("%.*s", t->length, t->start); }
   void visitOpnd(const Opnd *i) override { std::cout << "DUMMYOPND"; }
   void visitInt(const Int *i) override { printToken(i->value); }
   void visitBool(const Bool *b) override { printToken(b->value); }
@@ -263,15 +272,17 @@ public:
   void visitIdent(const Ident *i) override { printToken(i->ident); }
   void visitExpr(const Expr *e) override { std::cout << "DUMMYEXPR"; }
   void visitBinary(const Binary *b) override {
+    std::cout << "BIN";
     std::cout << "(";
-    b->left->accept(this);
-    std::cout << " ";
     printToken(b->op);
+    std::cout << " ";
+    b->left->accept(this);
     std::cout << " ";
     b->right->accept(this);
     std::cout << ")";
   }
   void visitUnary(const Unary *u) override {
+    std::cout << "UNA";
     std::cout << "(";
     printToken(u->op);
     std::cout << " ";
@@ -279,6 +290,7 @@ public:
     std::cout << ")";
   }
   void visitSingle(const Single *s) override {
+    std::cout << "SIN";
     std::cout << "(";
     s->right->accept(this);
     std::cout << ")";
