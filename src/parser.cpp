@@ -128,6 +128,18 @@ static bool isBinaryOp() {
 }
 
 static bool isUnaryOp() { return isCurrent(Scanner::TokenType::NOT); }
+static bool isSign() { return isCurrent(T::PLUS) || isCurrent(T::MINUS); }
+static bool isLiteral() {
+  return isCurrent(T::INT_LIT) || isCurrent(T::REAL_LIT) ||
+         isCurrent(T::STR_LIT);
+}
+static bool isRelational() {
+  return isCurrent(T::EQ) || isCurrent(T::NEQ) || isCurrent(T::LT) ||
+         isCurrent(T::LTE) || isCurrent(T::GTE) || isCurrent(T::GT);
+}
+static bool isAdding() {
+  return isCurrent(T::PLUS) || isCurrent(T::MINUS) || isCurrent(T::OR);
+}
 
 // static bool isType() {
 //   return isCurrent(Scanner::TokenType::INT) ||
@@ -253,6 +265,257 @@ static bool isUnaryOp() { return isCurrent(Scanner::TokenType::NOT); }
 //   consume(Scanner::TokenType::SEMICOLON, "Expected ';' at end of statement");
 //   return s;
 // }
+
+static Factor *factor();
+
+static Term *term() {
+  Term *t = new Term();
+  t->factor = factor();
+  return t;
+}
+
+static std::list<std::pair<AddingOperator *, Term *>> terms() {
+  std::list<std::pair<AddingOperator *, Term *>> ts({});
+  while (isAdding()) {
+    AddingOperator *ao = new AddingOperator();
+    ao->op = readCurrent();
+    advance();
+    ts.push_back(std::make_pair(ao, term()));
+  }
+  return ts;
+}
+
+static SimpleExpr *simpleExpression() {
+  SimpleExpr *e = new SimpleExpr();
+  if (isSign()) {
+    advance();
+    e->sign = readPrevious();
+  }
+  e->term = term();
+  e->terms = terms();
+  return e;
+}
+
+static Expr *expression() {
+  Expr *e = new Expr();
+  e->left = simpleExpression();
+  if (isRelational()) {
+    advance();
+    RelationalOperator *op = new RelationalOperator();
+    op->op = readPrevious();
+    e->op = op;
+    e->right = simpleExpression();
+  }
+  return e;
+}
+
+static Factor *factor() {
+  if (isCurrent(T::LEFT_PAREN)) {
+    Expr *e = expression();
+    consume(T::RIGHT_PAREN, "Expected ')'");
+    return e;
+  }
+  if (isCurrent(T::ID)) {
+  }
+  if (isCurrent(T::NOT)) {
+    Not *i = new Not();
+    i->factor = factor();
+    return i;
+  }
+  if (isCurrent(T::INT_LIT)) {
+    IntegerLiteral *i = new IntegerLiteral();
+    i->value = readCurrent();
+    return i;
+  }
+  if (isCurrent(T::REAL_LIT)) {
+    RealLiteral *i = new RealLiteral();
+    i->value = readCurrent();
+    return i;
+  }
+  if (isCurrent(T::STR_LIT)) {
+    StringLiteral *i = new StringLiteral();
+    i->value = readCurrent();
+    return i;
+  }
+  Size *i = new Size();
+  i->factor = factor();
+  consume(T::DOT, "Expected '.'");
+  advance();
+  if (!readPrevious().compare("size"))
+    errorAt(parser.previous, "Expected 'size' after '.'");
+  return i;
+}
+
+static Variable *variable() {
+  Variable *v = new Variable();
+  consume(T::ID, "Expected ID");
+  v->id = readPrevious();
+  if (isCurrent(T::LEFT_BRACKET)) {
+    v->index = expression();
+    consume(T::RIGHT_BRACKET, "Expected ']'");
+  }
+  return v;
+}
+
+static std::list<Expr *> arguments() {
+  std::list<Expr *> as;
+  if (isCurrent(T::RIGHT_PAREN))
+    return as;
+  as.push_back(expression());
+  while (!isCurrent(T::RIGHT_PAREN)) {
+    if (parser.panicMode) {
+      exitPanic();
+      return as;
+    }
+    consume(T::COMMA, "Expected ',' between expressions");
+    as.push_back(expression());
+  }
+  return as;
+}
+
+static Write *write() {
+  Write *w = new Write();
+  consume(T::ID, "Expected writeln");
+  consume(T::LEFT_PAREN, "Expected '('");
+  w->arguments = arguments();
+  consume(T::RIGHT_PAREN, "Expected ')'");
+  return w;
+}
+
+static Read *read() {
+  consume(T::ID, "Expected read");
+  consume(T::LEFT_PAREN, "Expected '('");
+  Read *r = new Read();
+  r->variables.push_back(variable());
+  while (!isCurrent(T::RIGHT_PAREN)) {
+    if (parser.panicMode) {
+      exitPanic();
+      return r;
+    }
+    consume(T::COMMA, "Expected ','");
+  }
+  advance();
+  return r;
+}
+
+static Assign *assign(std::string id) {
+  consume(T::ASSIGN, "Expected :=");
+  Assign *a = new Assign();
+  a->id = id;
+  a->expression = expression();
+  return a;
+}
+
+static Call *call(std::string id) {
+  consume(T::LEFT_PAREN, "Expected (");
+  Call *c = new Call();
+  c->id = id;
+  consume(T::LEFT_PAREN, "Expected '('");
+  c->arguments = arguments();
+  consume(T::RIGHT_PAREN, "Expected ')'");
+  return c;
+}
+static Return *return_() {
+  consume(T::RETURN, "Expected 'return'");
+  Return *r = new Return();
+  r->expression = expression();
+  return r;
+}
+static Assert *assert() {
+  consume(T::ASSERT, "Expected 'return'");
+  consume(T::LEFT_PAREN, "Expected '('");
+  Assert *a = new Assert();
+  a->expression = expression();
+  consume(T::RIGHT_PAREN, "Expected ')'");
+  return a;
+}
+
+static SimpleStatement *simpleStatement() {
+  if (isCurrent(T::ID)) {
+    std::string s = readCurrent();
+    if (s.compare("read"))
+      return read();
+    if (s.compare("writeln"))
+      return write();
+    advance();
+    if (isCurrent(T::ASSIGN))
+      return assign(readPrevious());
+    return call(readPrevious());
+  }
+  if (isCurrent(T::RETURN)) {
+    return return_();
+  }
+  if (isCurrent(T::ASSERT)) {
+    return assert();
+  }
+  errorAt(parser.current, "Expected read,writeln,ID,return,assert");
+  return new SimpleStatement();
+}
+
+static Block *block();
+
+static Type *type();
+
+static VarDecl *varDecl() {
+  VarDecl *v = new VarDecl();
+  advance();
+  consume(T::ID, "Expected identifier");
+  v->ids.push_back(readPrevious());
+  while (!isCurrent(T::COLON)) {
+    if (parser.panicMode) {
+      exitPanic();
+      break;
+    }
+    consume(T::COMMA, "Expected ','");
+    consume(T::ID, "Expected identifier");
+    v->ids.push_back(readPrevious());
+  }
+  consume(T::COLON, "Expected ':'");
+  v->type = type();
+  return v;
+}
+
+static Statement *statement();
+
+static If *if_() {
+  If *i = new If();
+  consume(T::IF, "Expected 'if'");
+  i->condition = expression();
+  consume(T::THEN, "Expected 'then'");
+  i->thenBranch = statement();
+  if (isCurrent(T::ELSE)) {
+    advance();
+    i->elseBranch = statement();
+  }
+  return i;
+}
+
+static While *while_() {
+  While *w = new While();
+  consume(T::WHILE, "Expected 'while'");
+  w->condition = expression();
+  consume(T::DO, "Expected 'do'");
+  w->statement = statement();
+  return w;
+}
+
+static Statement *statement() {
+  //
+  if (isCurrent(T::VAR)) {
+    return varDecl();
+  }
+  if (isCurrent(T::IF)) {
+    return if_();
+  }
+  if (isCurrent(T::WHILE)) {
+    return while_();
+  }
+  if (isCurrent(T::BEGIN)) {
+    return block();
+  }
+  return simpleStatement();
+}
+
 static Block *block() {
   Block *b = new Block();
   consume(T::BEGIN, "Expected 'begin'");
@@ -262,6 +525,7 @@ static Block *block() {
       exitPanic();
       break;
     }
+    b->statements.push_back(statement());
     advance();
   }
   advance();
@@ -272,6 +536,25 @@ static Parameter *parameter() {
   consume(T::LEFT_PAREN, "Expected (");
   Parameter *p = new Parameter();
   return p;
+}
+
+static Type *type() {
+  Type *t = new Type();
+  if (isCurrent(T::ARRAY)) {
+    advance();
+    consume(T::LEFT_BRACKET, "Expected '['");
+    t->size = expression();
+    consume(T::RIGHT_BRACKET, "Expected ']'");
+  }
+  consume(T::ID, "Expected identifier");
+  t->type = readPrevious();
+  return t;
+}
+
+static Type *voidType() {
+  Type *t = new Type();
+  t->type = "void";
+  return t;
 }
 
 static std::list<Parameter *> parameters() {
@@ -285,15 +568,14 @@ static std::list<Parameter *> parameters() {
 
 static Function *function() {
   Function *f = new Function();
-  f->returnType = "void";
+  f->returnType = voidType();
   if (isCurrent(T::FUNCTION)) {
     advance();
     consume(T::ID, "Expected identifier");
     f->id = readPrevious();
     f->parameters = parameters();
     consume(T::COLON, "Expected ':'");
-    consume(T::ID, "Expected identifier");
-    f->returnType = readPrevious();
+    f->returnType = type();
   }
   if (isCurrent(T::PROCEDURE)) {
     advance();
@@ -318,8 +600,8 @@ static std::list<Function *> functions() {
 static Program *program() {
   Program *p = new Program();
   for (;;) {
-    printCurrent("C:");
-    std::cout << std::endl;
+    // printCurrent("C:");
+    // std::cout << std::endl;
     if (isCurrent(T::COMMENT)) {
       advance();
       continue;
@@ -342,6 +624,7 @@ static Program *program() {
       consume(T::SEMICOLON, "Expected ';'");
       p->functions = functions();
       p->block = block();
+      break;
     }
     exitPanic();
   }

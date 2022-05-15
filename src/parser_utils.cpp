@@ -23,7 +23,6 @@ public:
     std::cout << "DUMMY";
   }
   void visitType(const Parser::Type *i) override { std::cout << "DUMMY"; }
-  void visitArray(const Parser::Array *i) override { std::cout << "DUMMY"; }
   void visitBlock(const Parser::Block *i) override {
     std::cout << "(BLOCK\n"
               << "(STATEMENTS\n";
@@ -62,6 +61,8 @@ public:
   void visitAddingOperator(const Parser::AddingOperator *i) override {
     std::cout << "DUMMY";
   }
+  void visitNot(const Parser::Not *i) override { std::cout << "DUMMY"; }
+  void visitSize(const Parser::Size *i) override { std::cout << "DUMMY"; }
   void visitTerm(const Parser::Term *i) override { std::cout << "DUMMY"; }
   void visitFactor(const Parser::Factor *i) override { std::cout << "DUMMY"; }
   void visitMultiplyingOperator(const Parser::MultiplyingOperator *i) override {
@@ -70,6 +71,7 @@ public:
   void visitVariable(const Parser::Variable *i) override {
     std::cout << "DUMMY";
   }
+  void visitLiteral(const Parser::Literal *i) override { std::cout << "DUMMY"; }
   void visitIntegerLiteral(const Parser::IntegerLiteral *i) override {
     std::cout << "DUMMY";
   }
