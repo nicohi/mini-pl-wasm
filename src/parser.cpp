@@ -5,6 +5,9 @@
 #include <iostream>
 #include <map>
 
+// TMP
+#include <unistd.h>
+
 #define S Scanner
 #define T Scanner::TokenType
 
@@ -57,6 +60,10 @@ static void print(Scanner::Token *t) {
 
 static void printCurrent(std::string msg) {
   std::cout << msg << Scanner::getName(parser.current) << std::endl;
+}
+
+static bool isPrevious(Scanner::TokenType t) {
+  return parser.previous->type == t;
 }
 
 static bool isCurrent(Scanner::TokenType t) {
@@ -139,6 +146,10 @@ static bool isRelational() {
 }
 static bool isAdding() {
   return isCurrent(T::PLUS) || isCurrent(T::MINUS) || isCurrent(T::OR);
+}
+static bool isMultiplying() {
+  return isCurrent(T::MUL) || isCurrent(T::DIV) || isCurrent(T::MOD) ||
+         isCurrent(T::AND);
 }
 
 // static bool isType() {
@@ -268,9 +279,23 @@ static bool isAdding() {
 
 static Factor *factor();
 
+static std::list<std::pair<MultiplyingOperator *, Factor *>> factors() {
+  std::list<std::pair<MultiplyingOperator *, Factor *>> fs({});
+  // std::cout << "AA";
+  while (isMultiplying()) {
+    MultiplyingOperator *mo = new MultiplyingOperator();
+    mo->op = readCurrent();
+    advance();
+    fs.push_back(std::make_pair(mo, factor()));
+  }
+  return fs;
+}
+
 static Term *term() {
   Term *t = new Term();
+  // std::cout << "BB";
   t->factor = factor();
+  t->factors = factors();
   return t;
 }
 
@@ -280,6 +305,8 @@ static std::list<std::pair<AddingOperator *, Term *>> terms() {
     AddingOperator *ao = new AddingOperator();
     ao->op = readCurrent();
     advance();
+    // std::cout << "BB";
+    // ParserUtils::pprint(ao);
     ts.push_back(std::make_pair(ao, term()));
   }
   return ts;
@@ -293,12 +320,17 @@ static SimpleExpr *simpleExpression() {
   }
   e->term = term();
   e->terms = terms();
+  // for (auto a : e->terms)
+  // ParserUtils::pprint(a.second);
   return e;
 }
 
 static Expr *expression() {
   Expr *e = new Expr();
   e->left = simpleExpression();
+  // ParserUtils::pprint(e->left);
+  // std::cout << "EP" << readPrevious() << std::endl;
+  // std::cout << "EC" << readCurrent() << std::endl;
   if (isRelational()) {
     advance();
     RelationalOperator *op = new RelationalOperator();
@@ -309,13 +341,37 @@ static Expr *expression() {
   return e;
 }
 
+static Variable *variable(std::string s) {
+  Variable *v = new Variable();
+  v->id = s;
+  if (isCurrent(T::LEFT_BRACKET)) {
+    v->index = expression();
+    consume(T::RIGHT_BRACKET, "Expected ']' after index");
+  }
+  return v;
+}
+
+static std::list<Expr *> arguments();
+
+static Call *call(std::string s);
 static Factor *factor() {
+  // std::cout << "AA" << readPrevious() << std::endl;
+  // std::cout << "BB" << readCurrent() << std::endl;
+  //  ParserUtils::pprint(i);
   if (isCurrent(T::LEFT_PAREN)) {
+    advance();
     Expr *e = expression();
     consume(T::RIGHT_PAREN, "Expected ')'");
     return e;
   }
   if (isCurrent(T::ID)) {
+    advance();
+    if (isCurrent(T::LEFT_PAREN)) {
+      Call *c = call(readPrevious());
+      consume(T::RIGHT_PAREN, "Expected ')' after function call");
+      return c;
+    }
+    return variable(readPrevious());
   }
   if (isCurrent(T::NOT)) {
     Not *i = new Not();
@@ -325,23 +381,29 @@ static Factor *factor() {
   if (isCurrent(T::INT_LIT)) {
     IntegerLiteral *i = new IntegerLiteral();
     i->value = readCurrent();
+    // ParserUtils::pprint(i);
+    // usleep(1000000);
+    // usleep(10000000);
+    advance();
     return i;
   }
   if (isCurrent(T::REAL_LIT)) {
     RealLiteral *i = new RealLiteral();
     i->value = readCurrent();
+    advance();
     return i;
   }
   if (isCurrent(T::STR_LIT)) {
     StringLiteral *i = new StringLiteral();
     i->value = readCurrent();
+    advance();
     return i;
   }
   Size *i = new Size();
   i->factor = factor();
   consume(T::DOT, "Expected '.'");
   advance();
-  if (!readPrevious().compare("size"))
+  if (!(readPrevious().compare("size") == 0))
     errorAt(parser.previous, "Expected 'size' after '.'");
   return i;
 }
@@ -352,7 +414,7 @@ static Variable *variable() {
   v->id = readPrevious();
   if (isCurrent(T::LEFT_BRACKET)) {
     v->index = expression();
-    consume(T::RIGHT_BRACKET, "Expected ']'");
+    consume(T::RIGHT_BRACKET, "Expected ']' after index");
   }
   return v;
 }
@@ -407,7 +469,6 @@ static Assign *assign(std::string id) {
 }
 
 static Call *call(std::string id) {
-  consume(T::LEFT_PAREN, "Expected (");
   Call *c = new Call();
   c->id = id;
   consume(T::LEFT_PAREN, "Expected '('");
@@ -433,11 +494,13 @@ static Assert *assert() {
 static SimpleStatement *simpleStatement() {
   if (isCurrent(T::ID)) {
     std::string s = readCurrent();
-    if (s.compare("read"))
+    if (s.compare("read") == 0)
       return read();
-    if (s.compare("writeln"))
+    if (s.compare("writeln") == 0)
       return write();
     advance();
+    // std::cout << "P" << readPrevious() << std::endl;
+    // std::cout << "C" << readCurrent() << std::endl;
     if (isCurrent(T::ASSIGN))
       return assign(readPrevious());
     return call(readPrevious());
@@ -527,8 +590,11 @@ static Block *block() {
     }
     b->statements.push_back(statement());
     advance();
+    if (isPrevious(T::SEMICOLON) && isCurrent(T::END))
+      break;
   }
-  advance();
+  if (isCurrent(T::END))
+    advance();
   return b;
 }
 
@@ -541,6 +607,7 @@ static Parameter *parameter() {
 static Type *type() {
   Type *t = new Type();
   if (isCurrent(T::ARRAY)) {
+    t->isArray = true;
     advance();
     consume(T::LEFT_BRACKET, "Expected '['");
     t->size = expression();

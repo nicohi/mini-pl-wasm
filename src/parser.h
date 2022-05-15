@@ -204,7 +204,7 @@ public:
 class Term : public TreeNode {
 public:
   Factor *factor;
-  std::list<std::pair<MultiplyingOperator *, Factor *>> terms;
+  std::list<std::pair<MultiplyingOperator *, Factor *>> factors;
   void accept(TreeWalker *t) override { t->visitTerm(this); };
 };
 
@@ -245,6 +245,7 @@ public:
 class Type : public TreeNode {
 public:
   std::string type;
+  bool isArray;
   Expr *size;
   void accept(TreeWalker *t) override { t->visitType(this); };
 };
