@@ -5,17 +5,35 @@ namespace ParserUtils {
 class PrintWalker : public Parser::TreeWalker {
 public:
   void visitProgram(const Parser::Program *i) override {
-    std::cout << "DUMMYPROG";
-  }
-  void visitProcedure(const Parser::Procedure *i) override {
-    std::cout << "DUMMY";
+    std::cout << "(PROGRAM " << i->id;
+    std::cout << std::endl << "(FUNCTIONS\n";
+    for (Parser::TreeNode *n : i->functions) {
+      n->accept(this);
+      // std::cout << std::endl;
+    }
+    std::cout << ")\n";
+    std::cout << "MAIN:\n";
+    i->block->accept(this);
+    std::cout << ")\n";
   }
   void visitFunction(const Parser::Function *i) override {
     std::cout << "DUMMY";
   }
+  void visitParameter(const Parser::Parameter *i) override {
+    std::cout << "DUMMY";
+  }
   void visitType(const Parser::Type *i) override { std::cout << "DUMMY"; }
   void visitArray(const Parser::Array *i) override { std::cout << "DUMMY"; }
-  void visitBlock(const Parser::Block *i) override { std::cout << "DUMMY"; }
+  void visitBlock(const Parser::Block *i) override {
+    std::cout << "(BLOCK\n"
+              << "(STATEMENTS\n";
+    for (Parser::TreeNode *n : i->statements) {
+      n->accept(this);
+      // std::cout << std::endl;
+    }
+    std::cout << ")\n";
+    std::cout << ")\n";
+  }
   void visitStatement(const Parser::Statement *i) override {
     std::cout << "DUMMY";
   }

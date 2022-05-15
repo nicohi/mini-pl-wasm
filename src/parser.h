@@ -8,8 +8,8 @@
 namespace Parser {
 
 class Program;
-class Procedure;
 class Function;
+class Parameter;
 class Type;
 class Array;
 class Block;
@@ -40,8 +40,8 @@ class StringLiteral;
 class TreeWalker {
 public:
   virtual void visitProgram(const Program *i) = 0;
-  virtual void visitProcedure(const Procedure *i) = 0;
   virtual void visitFunction(const Function *i) = 0;
+  virtual void visitParameter(const Parameter *i) = 0;
   virtual void visitType(const Type *i) = 0;
   virtual void visitArray(const Array *i) = 0;
   virtual void visitBlock(const Block *i) = 0;
@@ -75,8 +75,39 @@ public:
   virtual void accept(TreeWalker *t) = 0;
 };
 
+class Statement : public TreeNode {
+public:
+  void accept(TreeWalker *t) override { t->visitStatement(this); };
+};
+
+class Block : public TreeNode {
+public:
+  std::list<Statement *> statements;
+  void accept(TreeWalker *t) override { t->visitBlock(this); };
+};
+
+class Parameter : public TreeNode {
+public:
+  std::string id;
+  std::string type;
+  void accept(TreeWalker *t) override { t->visitParameter(this); };
+};
+
+class Function : public TreeNode {
+public:
+  std::string id;
+  std::string returnType;
+  std::list<Parameter *> parameters;
+  Block *block;
+  void accept(TreeWalker *t) override { t->visitFunction(this); };
+};
+
 class Program : public TreeNode {
 public:
+  std::string id;
+  std::list<Function *> functions;
+  Block *block;
+  // void appendFunction(Function *f) { functions.push_back(f); }
   void accept(TreeWalker *t) override { t->visitProgram(this); };
 };
 

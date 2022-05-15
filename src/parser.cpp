@@ -5,6 +5,9 @@
 #include <iostream>
 #include <map>
 
+#define S Scanner
+#define T Scanner::TokenType
+
 namespace Parser {
 
 struct ParserState {
@@ -37,6 +40,16 @@ struct ParseRule {
   Precedence precedence;
 };
 std::map<Scanner::TokenType, ParseRule> rules;
+
+static std::string readCurrent() {
+  std::string c(parser.current->start, parser.current->length);
+  return c;
+}
+
+static std::string readPrevious() {
+  std::string c(parser.previous->start, parser.previous->length);
+  return c;
+}
 
 static void print(Scanner::Token *t) {
   fprintf(stderr, "'%.*s'", t->length, t->start);
@@ -78,12 +91,13 @@ static void advance() {
   }
 }
 
-static void consume(Scanner::TokenType type, std::string msg) {
+static bool consume(Scanner::TokenType type, std::string msg) {
   if (parser.current->type == type) {
     advance();
-    return;
+    return true;
   }
   errorAt(parser.current, msg);
+  return false;
 }
 
 static void exitPanic() {
@@ -94,6 +108,7 @@ static void exitPanic() {
               << std::endl;
     advance();
   }
+  advance();
   parser.panicMode = false;
 }
 
@@ -238,24 +253,97 @@ static bool isUnaryOp() { return isCurrent(Scanner::TokenType::NOT); }
 //   consume(Scanner::TokenType::SEMICOLON, "Expected ';' at end of statement");
 //   return s;
 // }
+static Block *block() {
+  Block *b = new Block();
+  consume(T::BEGIN, "Expected 'begin'");
+  while (!isCurrent(T::END)) {
+    if (isCurrent(T::SCAN_ERROR) || isCurrent(T::SCAN_EOF)) {
+      errorAt(parser.current, parser.current->message);
+      exitPanic();
+      break;
+    }
+    advance();
+  }
+  advance();
+  return b;
+}
+
+static Parameter *parameter() {
+  consume(T::LEFT_PAREN, "Expected (");
+  Parameter *p = new Parameter();
+  return p;
+}
+
+static std::list<Parameter *> parameters() {
+  std::list<Parameter *> ps;
+  consume(T::LEFT_PAREN, "Expected '('");
+  while (!isCurrent(T::RIGHT_PAREN)) {
+    ps.push_back(parameter());
+  }
+  return ps;
+}
+
+static Function *function() {
+  Function *f = new Function();
+  f->returnType = "void";
+  if (isCurrent(T::FUNCTION)) {
+    advance();
+    consume(T::ID, "Expected identifier");
+    f->id = readPrevious();
+    f->parameters = parameters();
+    consume(T::COLON, "Expected ':'");
+    consume(T::ID, "Expected identifier");
+    f->returnType = readPrevious();
+  }
+  if (isCurrent(T::PROCEDURE)) {
+    advance();
+    consume(T::ID, "Expected identifier");
+    f->id = readPrevious();
+    f->parameters = parameters();
+  }
+  consume(T::SEMICOLON, "Expected ';'");
+  f->block = block();
+  consume(T::SEMICOLON, "Expected ';'");
+  return f;
+}
+
+static std::list<Function *> functions() {
+  std::list<Function *> fs;
+  if (isCurrent(T::FUNCTION) || isCurrent(T::PROCEDURE)) {
+    fs.push_back(function());
+  }
+  return fs;
+}
 
 static Program *program() {
   Program *p = new Program();
   for (;;) {
-    if (isCurrent(Scanner::TokenType::COMMENT)) {
+    printCurrent("C:");
+    std::cout << std::endl;
+    if (isCurrent(T::COMMENT)) {
       advance();
       continue;
     }
-    if (isCurrent(Scanner::TokenType::SCAN_ERROR)) {
+    if (isCurrent(T::SCAN_ERROR)) {
       errorAt(parser.current, parser.current->message);
       exitPanic();
       continue;
     }
-    if (isCurrent(Scanner::TokenType::SCAN_EOF) ||
-        isCurrent(Scanner::TokenType::END)) {
+    if (isCurrent(T::DOT)) {
+      advance();
+      while (isCurrent(T::COMMENT))
+        advance();
+      consume(T::SCAN_EOF, "Expected EOF after '.'");
       break;
     }
-    advance();
+    if (consume(T::PROGRAM, "Expected 'program'")) {
+      consume(T::ID, "Expected identifier");
+      p->id = readPrevious();
+      consume(T::SEMICOLON, "Expected ';'");
+      p->functions = functions();
+      p->block = block();
+    }
+    exitPanic();
   }
   return p;
 }
@@ -266,7 +354,6 @@ bool parse(const std::string source) {
   parser.panicMode = false;
   advance();
   prog = program();
-  consume(Scanner::TokenType::SCAN_EOF, "");
   ParserUtils::pprint(prog);
   return !parser.hadError;
 }
@@ -277,7 +364,6 @@ void parseAndWalk(const std::string source, TreeWalker *tw) {
   parser.panicMode = false;
   advance();
   prog = program();
-  consume(Scanner::TokenType::SCAN_EOF, "");
   if (!parser.hadError)
     prog->accept(tw);
 }
