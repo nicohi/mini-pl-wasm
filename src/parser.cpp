@@ -425,16 +425,14 @@ static Statement *statement() {
 static Block *block() {
   Block *b = new Block();
   consume(T::BEGIN, "Expected 'begin'");
-  while (!isCurrent(T::END)) {
-    if (isCurrent(T::SCAN_ERROR) || isCurrent(T::SCAN_EOF)) {
-      errorAt(parser.current, parser.current->message);
-      exitPanic();
-      break;
-    }
+  while (!isCurrent(T::END) && !isPrevious(T::END)) {
+    // if (isCurrent(T::SCAN_ERROR) || isCurrent(T::SCAN_EOF)) {
+    //   errorAt(parser.current, parser.current->message);
+    //   exitPanic();
+    //   break;
+    // }
     b->statements.push_back(statement());
     advance();
-    if (isPrevious(T::SEMICOLON) && isCurrent(T::END))
-      break;
   }
   if (isCurrent(T::END))
     advance();

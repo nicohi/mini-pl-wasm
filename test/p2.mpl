@@ -3,7 +3,7 @@ begin
 var nTimes : int;
 nTimes := 0;
 writeln("How many times? ");
-read(nTimes);
+//read(nTimes);
 var x : int;
 while (x < nTimes) do
 begin
@@ -12,3 +12,4 @@ x := x + 1;
 end;
 assert(x = nTimes);
 end;
+.
