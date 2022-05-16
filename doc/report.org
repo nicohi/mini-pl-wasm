@@ -8,10 +8,13 @@
 * Instructions
 
 *cmake* and *gcc* are required to compile the interpreter.
-After =./build.sh= is run, to interpret a mini-pl progmram file, run =./build/mini-pl [filename]=.
+After =./build.sh= is run, to compile a mini-pl progmram file, run =./build/mini-pl [filename]=, the resulting file is named =out.wat=.
 For testing purposes, the user can use =./build/mini-pl -s [filename]= to run merely the scanner, or =./build/mini-pl -p [filename]= to run the scanner+parser.
 Both commands print a readable result.
 Example programs are provided in =./test/=.
+
+=./run.sh [path to mini-pl program]= can be run after =build.sh= in the project root.
+This script compiles the program to WAT, runs wat2wasm, and serves the wasm env on localhost:8080/env.html using python3.
 
 * Implementation details
 I decided to make WAT (WebAssembly text format) the compile target.
@@ -113,22 +116,161 @@ The parser implements each of the productions (everything enclosed in =<>=) in t
 <multiplying operator> ::= "*" | "/" | "%" | "and"
 \end{verbatim}
 
+** AST
+After parsing, the parse tree is simplified by the =ParseTreeWalker= class using the visitor pattern.
+The new AST is then traversed by the =Decorator= class, which performs type checks on expressions and verifies that variables are in scope.
+The following classes represent the AST.
+\begin{verbatim}
+class IRNode {
+public:
+  mutable std::string type = "void";
+  mutable std::string name;
+  mutable std::list<std::string> errors;
+  mutable std::list<std::string> errors_in;
+  mutable std::list<std::string> errors_out;
+  mutable std::map<std::string, std::string> symtab; // name,type
+  virtual void accept(IRVisitor *v) = 0;
+  void appendError(const std::string s) const { errors.emplace_back(s); }
+  void appendError_in(const std::string s) const { errors_in.emplace_back(s); }
+  void appendError_out(const std::string s) const {
+    errors_out.emplace_back(s);
+  }
+};
 
+class Program : public IRNode {
+public:
+  std::list<Function *> functions;
+  Scope *scope;
+  void accept(IRVisitor *v) override { v->visitProgram(this); }
+};
+
+class Function : public IRNode {
+public:
+  Scope *scope;
+  void accept(IRVisitor *v) override { v->visitFunction(this); }
+};
+
+class Statement : public IRNode {
+public:
+  void accept(IRVisitor *v) override { v->visitStatement(this); }
+};
+
+class Scope : public IRNode {
+public:
+  std::list<Statement *> statements;
+  void accept(IRVisitor *v) override { v->visitScope(this); }
+};
+
+class If : public Statement {
+public:
+  Scope *scope1;
+  Scope *scope2;
+  void accept(IRVisitor *v) override { v->visitIf(this); }
+};
+
+class While : public Statement {
+public:
+  Scope *scope;
+  void accept(IRVisitor *v) override { v->visitWhile(this); }
+};
+
+class Declare : public Statement {
+public:
+  std::list<std::string> names;
+  void accept(IRVisitor *v) override { v->visitDeclare(this); }
+};
+
+class Assign : public Statement {
+public:
+  Expr *expr;
+  void accept(IRVisitor *v) override { v->visitAssign(this); }
+};
+
+class Call : public Statement {
+public:
+  std::list<Expr *> args;
+  void accept(IRVisitor *v) override { v->visitCall(this); }
+};
+
+class Return : public Statement {
+public:
+  Expr *expr;
+  void accept(IRVisitor *v) override { v->visitReturn(this); }
+};
+
+class Read : public Statement {
+public:
+  std::list<std::string> names;
+  void accept(IRVisitor *v) override { v->visitRead(this); }
+};
+
+class Assert : public Statement {
+public:
+  Expr *expr;
+  void accept(IRVisitor *v) override { v->visitAssert(this); }
+};
+
+class Expr : public IRNode {
+public:
+  void accept(IRVisitor *v) override { v->visitExpr(this); }
+};
+
+class Literal : public Expr {
+public:
+  std::string value;
+  void accept(IRVisitor *v) override { v->visitLiteral(this); }
+};
+
+class BinaryOp : public Expr {
+public:
+  std::string op;
+  Expr *left;
+  Expr *right;
+  void accept(IRVisitor *v) override { v->visitBinaryOp(this); }
+};
+
+class UnaryOp : public Expr {
+public:
+  std::string op;
+  Expr *left;
+  void accept(IRVisitor *v) override { v->visitUnaryOp(this); }
+};
+
+class Variable : public Expr {
+public:
+  Expr *index;
+  void accept(IRVisitor *v) override { v->visitVariable(this); }
+};
+\end{verbatim}
 ** Standard library
 Since module linking is currently not possible in WASM, I decided to simply add all the standard library functions to the same module as the output program.
 IO and memory management are handled by Javascript and WASM functions in =src/wasmlib/wasmlib.js= and =src/wasmlib/wasmlib.wat=.
-** a
+*** Functions
+Procedures are simply functions with return type "void".
+*** Simplifications
+# - Every variable is an array, arrays use address[-1] to store the size of the array.
+# - calling ".size" simply fetches the value at pointer[-1] of the.
+- procedures are syntactic sugar for functions that return type "void"
+- strings are always 20 bytes long
+*** Not implemented
+- Real numbers
+- Arrays
+- functions/procedures
+- malloc/free
 * Challenges
-I encountered a tricky bug in the parser relating to how references to tokens were being passed around.
-This took quite a bit of effort and time to resolve.
+I started working on this project way too late.
+This lead to me running out of time while implementing code generation.
 
 * Work log
 
-| Date             | Hours | Progress                           |
-|------------------+-------+------------------------------------|
-| <2022-05-13 Fri> |     4 | Initialize repo and begin planning |
-|------------------+-------+------------------------------------|
-| TOTAL HOURS      |     4 |                                    |
+| Date             | Hours | Progress                             |
+|------------------+-------+--------------------------------------|
+| <2022-05-13 Fri> |     4 | Initialize repo and begin planning   |
+| <2022-05-14 Sat> |    10 | Fix parser bugs                      |
+| <2022-05-15 Sun> |    16 | Get parser working with new language |
+| <2022-05-16 Mon> |    12 | Code generation                      |
+|------------------+-------+--------------------------------------|
+| TOTAL HOURS      |    42 |                                      |
 #+TBLFM: @>$2=vsum(@2..@-1)
 \pagebreak
 

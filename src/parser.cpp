@@ -394,6 +394,7 @@ static If *if_() {
 
 static While *while_() {
   While *w = new While();
+  std::cout << readCurrent();
   consume(T::WHILE, "Expected 'while'");
   w->condition = expression();
   consume(T::DO, "Expected 'do'");
@@ -402,7 +403,10 @@ static While *while_() {
 }
 
 static Statement *statement() {
-  //
+  if (isCurrent(T::COMMENT)) {
+    advance();
+    return statement();
+  }
   if (isCurrent(T::VAR)) {
     return varDecl();
   }
@@ -506,6 +510,10 @@ static std::list<Function *> functions() {
 static Program *program() {
   Program *p = new Program();
   for (;;) {
+    if (parser.panicMode) {
+      exitPanic();
+      break;
+    }
     // printCurrent("C:");
     // std::cout << std::endl;
     if (isCurrent(T::COMMENT)) {
@@ -544,6 +552,18 @@ bool parse(const std::string source) {
   advance();
   prog = program();
   ParserUtils::pprint(prog);
+  return !parser.hadError;
+}
+
+bool parse(const std::string source, Program **p) {
+  Scanner::init(source);
+  parser.hadError = false;
+  parser.panicMode = false;
+  advance();
+  Program *pr = program();
+  *p = pr;
+  // std::cout << *p << std::endl;
+  // ParserUtils::pprint(*p);
   return !parser.hadError;
 }
 

@@ -21,7 +21,7 @@ std::string read_file(string path) {
   throw(errno);
 }
 
-static int runFile(string path) {
+static int compileFile(string path) {
   string source;
   try {
     source = read_file(path);
@@ -29,7 +29,7 @@ static int runFile(string path) {
     cerr << "Failed to read file: " << path << endl;
     return errno;
   }
-  // Interpreter::interpret(source);
+  Compiler::compile(source);
   return errno;
 }
 
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
       string arg2 = argv[2];
       runParser(arg2);
     } else
-      return runFile(arg1);
+      return compileFile(arg1);
   } else
   end:
     printHelp();

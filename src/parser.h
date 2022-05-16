@@ -282,6 +282,7 @@ public:
 };
 
 bool parse(const std::string source);
+bool parse(const std::string source, Program **p);
 void parseAndWalk(const std::string source, TreeWalker *tw);
 
 // Stmts *getProgram();
